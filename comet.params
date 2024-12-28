@@ -1,0 +1,104 @@
+# comet_version 2024.02 rev. 0
+# Comet MS/MS search engine parameters file.
+# Everything following the '#' symbol is treated as a comment.
+#
+database_name = ecoli.fasta.idx
+decoy_search = 1                       # 0=no (default), 1=decoy
+decoy_kind = 1                         # 0=reverse, 1=shuffle
+
+#
+# masses && tolerance
+#
+precursor_tolerance_upper = 16.0                    # upper bound of the precursor mass tolerance
+precursor_tolerance_lower = -16.0                   # lower bound of the precursor mass tolerance; USUALLY NEGATIVE TO BE LOWER THAN 0
+precursor_tolerance_units = 2                       # 0=amu, 1=mmu, 2=ppm
+precursor_tolerance_type = 1                        # 0=MH+ (default), 1=precursor m/z; only valid for amu/mmu tolerances
+fragment_tolerance_upper = 16.0                     # upper bound of the precursor mass tolerance
+fragment_tolerance_lower = -16.0                    # lower bound of the precursor mass tolerance; USUALLY NEGATIVE TO BE LOWER THAN 0
+fragment_tolerance_units = 2                        # 0=amu, 1=mmu, 2=ppm
+fragment_tolerance_type = 1                         # 0=MH+ (default), 1 = m/z; only valid for amu/mmu tolerances
+isotope_error = 2                                   # 0=off, 1=0/1 (C13 error), 2=0/1/2, 3=0/1/2/3, 4=-1/0/1/2/3, 5=-1/0/1
+mass_type = 1                                       # 0=average masses, 1=monoisotopic masses
+deoxidation = 0                                     # 0 = RNA, 1 = DNA
+
+#
+# charge
+#
+max_fragment_charge = 3                 # set maximum fragment charge state to analyze (allowed max 5)
+max_precursor_charge = 6                # set maximum precursor charge state to analyze (allowed max 9)
+min_fragment_charge = 1
+min_precursor_charge = 1
+positive_charge = 0                     # 0 = negtive, 1 = positive
+adduct_ion = H-							# choice: H+, Na+, NH4+, K+, H-, only one can be selected.
+
+#
+# thread 
+#
+num_threads = 8                         # 0 = poll CPU to set num threads; else specify num threads directly (max 128)
+
+#
+# search enzyme
+#
+search_enzyme_number = 2                # choose from list at end of this params file
+allowed_missed_cleavage = 2             # maximum value is 5; for enzyme search
+
+
+# various && static modifications
+add_3term_oligonucleotide = OH,cP                                              # option = ["OH", "cP"], can choose multiple
+add_5term_oligonucleotide = OH,P                                              # option = ["OH", "P"]
+add_3term_nucleic_acid = OH,cP                                                 # option = ["OH", "cP"]
+add_5term_nucleic_acid = OH,P                                                 # option = ["OH", "P"]
+max_variable_mods_in_oligonucleotide = 5                                    # limit variable mods to subset of specified proteins if this file is specified & present
+variable_modslist_file = VarMod.params                   
+static_modslist_file = StaticMod.params
+
+#
+# fragment ions
+#
+fragment_bin_tol = 0.02                # binning to use on fragment ions, for xcorr calculation
+fragment_bin_offset = 0.0              # offset position to start the binning (0.0 to 1.0)
+use_a_ions = 1
+use_b_ions = 1
+use_c_ions = 1
+use_d_ions = 1
+use_w_ions = 1
+use_x_ions = 1
+use_y_ions = 1
+use_z_ions = 1
+use_a_B_ions = 1
+use_NL_ions = 1                        # 0=no, 1=yes to consider NH3/H2O neutral loss peaks
+
+#
+# Oligonucleotide && Nucleic Acid Param
+#
+digest_mass_range = 200.0-5000.0                # MH+ peptide mass range to analyze
+fragment_mass_range = 200.0-5000.0              # fragment mass range to analyze
+oligonucleotide_length_range = 3-50             # minimum and maximum peptide length to analyze (default min 1 to allowed max 51)
+
+
+#
+# spectral processing
+#
+scan_range = 0-0                       # start and end scan range to search; either entry can be set independently
+minimum_peaks = 10                     # required minimum number of peaks in spectrum to search (default 10)
+minimum_intensity = 0                 # minimum intensity value to read in
+remove_precursor_peak = 0              # 0=no, 1=yes, 2=all charge reduced precursor peaks (for ETD), 3=phosphate neutral loss peaks
+remove_precursor_tolerance = 1.5       # +- Da tolerance for precursor removal
+clear_mz_range = 0.0-0.0               # clear out all peaks in the specified m/z range e.g. remove reporter ion region of TMT spectra
+percentage_base_peak = 0.0             # specify a percentage (e.g. "0.05" for 5%) of the base peak intensity as a minimum intensity threshold
+ms_level = 2                           # MS level to analyze, valid are levels 2 (default) or 3
+activation_method = ALL                # activation method; used if activation method set; allowed ALL, CID, ECD, ETD, ETD+SA, PQD, HCD, IRMPD, SID
+spectrum_batch_size = 15000            # max. # of spectra to search at a time; 0 to search the entire scan range in one loop
+
+
+#
+# COMET_ENZYME_INFO _must_ be at the end of this parameters file
+# Enzyme entries can be added/deleted/edited
+# format: <enzyme name> <whether 3' cut> <cut nucleotide> <no cut nucleotide>
+#
+[COMET_ENZYME_INFO]
+0.  Cut_everywhere         0      -           -
+1.  Enzyme_A               0      A           -
+2.  Enzyme_T1              1      G           -
+3.  No_cut                 1      @           @
+
