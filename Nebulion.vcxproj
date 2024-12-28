@@ -195,6 +195,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include=".gitignore" />
     <None Include="comet.params" />
     <None Include="StaticMod.params" />
     <None Include="VarMod.params" />
