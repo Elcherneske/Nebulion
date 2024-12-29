@@ -14,60 +14,6 @@
 
 #include "MassUtils.h"
 
-void MassUtils::AssignMass(double *pdAtomMass,
-                                double *pdNTMass,
-                                double *pdBaseMass,
-                                int bMonoMasses,
-                                int bDeoxidation)
-{
-   double H, O, C, N, P, S, Se;
-
-   if (bMonoMasses) // monoisotopic masses
-   {
-      H = pdAtomMass[(int)'h'] = ElementMassUtils::Hydrogen_Mono; // hydrogen
-      O = pdAtomMass[(int)'o'] = ElementMassUtils::Oxygen_Mono;  // oxygen
-      C = pdAtomMass[(int)'c'] = ElementMassUtils::Carbon_Mono;   // carbon
-      N = pdAtomMass[(int)'n'] = ElementMassUtils::Nitrogen_Mono;   // nitrogen
-      P = pdAtomMass[(int)'p'] = ElementMassUtils::Phosphorus_Mono;    // phosphorus
-      S = pdAtomMass[(int)'s'] = ElementMassUtils::Sulfur_Mono;   // sulphur
-      Se = pdAtomMass[(int)'e'] = ElementMassUtils::Selenium_Mono;  // selenium
-   }
-   else  // average masses
-   {
-      H = pdAtomMass[(int)'h'] = ElementMassUtils::Hydrogen_Ave;
-      O = pdAtomMass[(int)'o'] = ElementMassUtils::Oxygen_Ave;
-      C = pdAtomMass[(int)'c'] = ElementMassUtils::Carbon_Ave;
-      N = pdAtomMass[(int)'n'] = ElementMassUtils::Nitrogen_Ave;
-      P = pdAtomMass[(int)'p'] = ElementMassUtils::Phosphorus_Ave;
-      S = pdAtomMass[(int)'s'] = ElementMassUtils::Sulfur_Ave;
-      Se = pdAtomMass[(int)'e'] = ElementMassUtils::Selenium_Ave;
-   }
-
-   double backbone;
-   if (bDeoxidation)
-   {
-      backbone = C*5 + H*8 + O*5 + P;
-   }
-   else
-   {
-      backbone = C*5 + H*8 + O*6 + P;
-   }
-
-   pdBaseMass[(int)'A'] = C*5  + H*4  + N*5;
-   pdBaseMass[(int)'G'] = C*5  + H*4  + N*5  + O;
-   pdBaseMass[(int)'C'] = C*4  + H*4  + N*3  + O;
-   pdBaseMass[(int)'U'] = C*4  + H*3  + N*2  + O*2;
-   pdBaseMass[(int)'T'] = C*5  + H*5  + N*2  + O*2;
-
-   pdNTMass[(int)'A'] = pdBaseMass[(int)'A'] + backbone;
-   pdNTMass[(int)'G'] = pdBaseMass[(int)'G'] + backbone;
-   pdNTMass[(int)'C'] = pdBaseMass[(int)'C'] + backbone;
-   pdNTMass[(int)'U'] = pdBaseMass[(int)'U'] + backbone;
-   pdNTMass[(int)'T'] = pdBaseMass[(int)'T'] + backbone;
-}
-
-
-
 void MassUtils::AssignMass(MassUtil& massUtility)
 {
    double H, O, C, N, P, S, Se;

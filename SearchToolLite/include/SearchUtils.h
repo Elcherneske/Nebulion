@@ -32,15 +32,15 @@ public:
    static bool QueryScoring(ThreadPool* _tp, Query& query, const vector<Oligonucleotide>& vOligonucleotide);
    static bool QueryScoring(ThreadPool* _tp, vector<Query>& vQueries, const vector<Oligonucleotide>& vOligonucleotide);
 
-   static bool EntryScoring(const CometSpectrum& spec, const Oligonucleotide& oligonucleotide, const int iWhichVarModCombination, Scores& result);
+   static bool EntryScoring(const ExpSpectrum& spec, const Oligonucleotide& oligonucleotide, const int iWhichVarModCombination, Scores& result);
 
 private:
    // Core search functions
    static bool GenerateTheoreticalSpectrum(vector<OligonucleotideFragment> fragmentList, int iArraySize, int iMaxFragmentCharge, vector<double>& spectrum);
 
-   static bool GenerateExperimentalSpectrum(const CometSpectrum& cometSpectrum, vector<double>& spectrum);
+   static bool GenerateExperimentalSpectrum(const ExpSpectrum& expSpectrum, vector<double>& spectrum);
 
-   static vector<pair<int, int>> FragmentMatchCount(const CometSpectrum& cometSpectrum, const vector<OligonucleotideFragment>& vFragmentList);
+   static vector<pair<int, int>> FragmentMatchCount(const ExpSpectrum& expSpectrum, const vector<OligonucleotideFragment>& vFragmentList);
 
 };
 

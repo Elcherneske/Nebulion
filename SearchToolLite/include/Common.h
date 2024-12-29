@@ -39,9 +39,8 @@
 #include <random> 
 
 
-#define comet_version   "2024.02 rev. 0"
+#define nebulion_version   "2024.12 rev. 0"
 #define copyright "(c) Peking University"
-extern string g_sCometVersion;   // version string including git hash
 
 // Redefined how the bin offset is interpreted and applied.  The valid range for the offset is
 // now between 0.0 and 1.0 and scales to the binWidth.

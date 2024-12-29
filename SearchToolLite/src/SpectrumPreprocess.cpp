@@ -19,45 +19,27 @@
 
 MSReader SpectrumPreprocessUtils::msreader;
 
-SpectrumPreprocessUtils::SpectrumPreprocessUtils()  { }
+SpectrumPreprocessUtils::SpectrumPreprocessUtils()  
+{
 
-SpectrumPreprocessUtils::~SpectrumPreprocessUtils() { }
+}
+
+SpectrumPreprocessUtils::~SpectrumPreprocessUtils() 
+{ 
+       
+}
 
 MSReader& SpectrumPreprocessUtils::getMSReader()
 {
     return SpectrumPreprocessUtils::msreader;
 }
 
-bool SpectrumPreprocessUtils::LoadAllSpectrum(vector<InputFile>& inputFiles, vector<std::pair<InputFile, vector<CometSpectrum>>>& vInputFileCometSpectrumPair)
-{
-    if (vInputFileCometSpectrumPair.size() > 0)
-        vInputFileCometSpectrumPair.clear();
-
-    for (InputFile inputFile: inputFiles)
-    {
-        vector<CometSpectrum> vCometSpectrumList;
-
-        if(! SpectrumPreprocessUtils::LoadSpectrum(inputFile, vCometSpectrumList))
-            return false;
-        
-
-        if (vCometSpectrumList.size() <= 0)
-            return false;
-
-        InputFile file = InputFile(inputFile);
-        std::pair<InputFile, vector<CometSpectrum>> pair(file, vCometSpectrumList);
-        vInputFileCometSpectrumPair.push_back(pair);
-    }
-
-    return true;
-}
-
-bool SpectrumPreprocessUtils::LoadSpectrum(InputFile& inputFile, vector<CometSpectrum>& vCometSpectrumList)
+bool SpectrumPreprocessUtils::LoadSpectrum(InputFile& inputFile, vector<ExpSpectrum>& vSpectrumList)
 {
     int iFileLastScan = -1;                         // The actual last scan in the file.
     int iBreakMaxNum = 0;
     Spectrum mstSpectrum;                              // For holding spectrum.
-    CometSpectrum cometSpectrum;
+    ExpSpectrum expSpectrum;
 
     SpectrumPreprocessUtils::msreader.readFile(inputFile.sFileName.c_str(), mstSpectrum, 0);       //first time read
 
@@ -110,10 +92,8 @@ bool SpectrumPreprocessUtils::LoadSpectrum(InputFile& inputFile, vector<CometSpe
             if (inputFile.iAnalysisType == InputFile::AnalysisType_SpecificScanRange && inputFile.iLastScan > 0 && mstSpectrum.getScanNumber() > inputFile.iLastScan) // if specific scan then consider to break
                 break;
 
-            if (!SpectrumPreprocessUtils::PreprocessSpectrum(mstSpectrum, vCometSpectrumList))
+            if (!SpectrumPreprocessUtils::PreprocessSpectrum(mstSpectrum, vSpectrumList))
                 break;
-            // cometSpectrum.spectrum = mstSpectrum;
-            // spectrumList.push_back(cometSpectrum);
         }
         else
         {
@@ -127,7 +107,7 @@ bool SpectrumPreprocessUtils::LoadSpectrum(InputFile& inputFile, vector<CometSpe
         SpectrumPreprocessUtils::msreader.readFile(nullptr, mstSpectrum);      
     }
 
-    if (vCometSpectrumList.size() <= 0)
+    if (vSpectrumList.size() <= 0)
         return false;
 
 
@@ -135,30 +115,24 @@ bool SpectrumPreprocessUtils::LoadSpectrum(InputFile& inputFile, vector<CometSpe
 }
 
 
-//根据Spectrum的不同前体离子电荷构建CometSpectrum
-bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<CometSpectrum>& cometSpectrumList)
+//根据Spectrum的不同前体离子电荷构建expSpectrum
+bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<ExpSpectrum>& vSpectrumList)
 {
-    // To run a search, all that's needed is MH+ and Z. So need to generate
-    // all combinations of these for each spectrum, whether there's a known
-    // Z for each precursor or if Comet has to guess the 1+ or 2+/3+ charges.
-    for (int i = 0 ; i < spec.sizeMZ(); ++i)  // walk through all precursor m/z's; usually just one
+    // To run a search, all that's needed is MZ and Z. So need to generate all combinations of these for each spectrum, whether there's a known
+    // Z for each precursor or add all posible Z to let the MZ in range
+    for (int mz_index = 0 ; mz_index < spec.sizeMZ(); ++mz_index)  // walk through all precursor m/z's; usually just one
     {
-      double dMZ = 0.0;                      // m/z to use for analysis
-      vector<int> vChargeStates;
-      int iSpectrumCharge = 0;
+        double dMZ = 0.0;                                   // m/z to use for analysis
+        vector<int> vChargeStates;
+        int iSpectrumCharge = 0;
 
-      if ((dMZ = spec.getMonoMZ(i)) == 0)
-         dMZ = spec.getMZ(i);
+        if ((dMZ = spec.getMonoMZ(mz_index)) == 0)
+            dMZ = spec.getMZ(mz_index);
 
-      if (spec.sizeMZ() <= spec.sizeZ())
-         iSpectrumCharge = spec.atZ(i).z;
-      else
-         iSpectrumCharge = 0;
-
-      // 1.  Have spectrum charge from file.  It may be 0.
-      // 2.  If the precursor_charge range is set and override_charge is set, then do something look into charge range.
-      // 3.  Else just use the spectrum charge (and possibly 1 or 2/3 rule)
-      // for simple this vision use spectrum charge
+        if ( mz_index < spec.sizeZ() )
+            iSpectrumCharge = spec.atZ(mz_index).z;
+        else
+            iSpectrumCharge = 0;
 
       if (iSpectrumCharge != 0) // use charge from spectrum file
       {
@@ -168,31 +142,31 @@ bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<CometSpe
          // add in any other charge states for the single precursor m/z
          if (spec.sizeMZ() == 1 && spec.sizeMZ() < spec.sizeZ())
          {
-               for (int ii = 1 ; ii < spec.sizeZ(); ++ii)
-                  vTmpChargeStates.push_back(spec.atZ(ii).z);
+            for (int i = 1; i < spec.sizeZ(); ++i)
+                vTmpChargeStates.push_back(spec.atZ(i).z);
          }
 
          for (auto& charge : vTmpChargeStates)
          {
             bool bPositive = Param::g_staticParams.options.bPositive;
             if ((bPositive && charge > 0) || (!bPositive && charge < 0))
-               vChargeStates.push_back(charge);
+                vChargeStates.push_back(charge);
+            else
+                vChargeStates.push_back(-1 * charge);
          }
       }
       else
       {
          double dSumBelow = 0.0;
          double dSumTotal = 0.0;
-
          for (int i=0; i<spec.size(); ++i)
          {
             dSumTotal += spec.at(i).intensity;
-
-            if (spec.at(i).mz < spec.getMZ())
+            if (spec.at(i).mz < dMZ)
                dSumBelow += spec.at(i).intensity;
          }
 
-         if (isEqual(dSumTotal, 0.0) || ((dSumBelow/dSumTotal) > 0.95))
+         if ((dSumTotal < CommonValues::dFloatZero) || ((dSumBelow/dSumTotal) > 0.95))
          {
             if (Param::g_staticParams.options.bPositive)
                vChargeStates.push_back(1);
@@ -201,15 +175,20 @@ bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<CometSpe
          }
          else
          {
+             IntRange chargeRange = Param::g_staticParams.options.precursorChargeRange;
             if (Param::g_staticParams.options.bPositive)
             {
-               vChargeStates.push_back(2);
-               vChargeStates.push_back(3);
+                for (int charge = chargeRange.iStart; charge <= chargeRange.iEnd; charge++)
+                {
+                    vChargeStates.push_back(charge);
+                }
             }
             else
             {
-               vChargeStates.push_back(-2);
-               vChargeStates.push_back(-3);
+                for (int charge = chargeRange.iStart; charge <= chargeRange.iEnd; charge++)
+                {
+                    vChargeStates.push_back(-1 * charge);
+                }
             }
          }
       }
@@ -220,33 +199,33 @@ bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<CometSpe
          int iPrecursorCharge = *iter;
          double dMass = MassUtils::MZToMass(dMZ, iPrecursorCharge);
 
-         if (IntRange::inRange(Param::g_staticParams.options.precursorChargeRange, abs(iPrecursorCharge))
-            && DoubleRange::inRange(Param::g_staticParams.options.oligonucleotideMassRange, dMass))
+         if (Param::g_staticParams.options.precursorChargeRange.inRange(abs(iPrecursorCharge))
+            && Param::g_staticParams.options.oligonucleotideMassRange.inRange(dMass))
          {
-            CometSpectrum cometSpectrum;
-            cometSpectrum.spectrum = Spectrum(spec);
-            cometSpectrum.dExperimentalPrecursorMass = dMass;
-            cometSpectrum.iPrecursorChargeState = iPrecursorCharge;
+             ExpSpectrum expSpectrum;
+             expSpectrum.spectrum = Spectrum(spec);
+             expSpectrum.dExpPreMass = dMass;
+             expSpectrum.iPreCharge = iPrecursorCharge;
 
             double dTotalIntensity = 0.0;
             double dHighestIntensity = 0;
-            for (int j = 0; j < cometSpectrum.spectrum.size(); j++)
+            for (int j = 0; j < expSpectrum.spectrum.size(); j++)
             {
-               Peak_T peak = cometSpectrum.spectrum.at(j);
+               Peak_T peak = expSpectrum.spectrum.at(j);
                if (peak.intensity > dHighestIntensity)
                {
                   dHighestIntensity = peak.intensity;
-                  cometSpectrum.iHighestIonIndex = j;
+                  expSpectrum.iHighestIonIndex = j;
                }
                dTotalIntensity += peak.intensity;
             }
-            cometSpectrum.dTotalIntensity = dTotalIntensity;
+            expSpectrum.dTotalIntensity = dTotalIntensity;
 
-            SpectrumPreprocessUtils::CalculateMassTolerance(cometSpectrum);
+            SpectrumPreprocessUtils::CalculateMassTolerance(expSpectrum);
 
-            cometSpectrum.iArraySize = (int)(cometSpectrum.expPrecursorMassSearchTolerance.dEnd * Param::g_staticParams.dInverseBinWidth);
+            expSpectrum.iArraySize = (int)(expSpectrum.preMassSearchRange.dEnd * Param::g_staticParams.dInverseBinWidth);
             
-            cometSpectrumList.push_back(cometSpectrum);
+            vSpectrumList.push_back(expSpectrum);
          }
       }
    }
@@ -254,125 +233,126 @@ bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<CometSpe
    return true;
 }
 
-bool SpectrumPreprocessUtils::CalculateMassTolerance(CometSpectrum& cometSpectrum)
+bool SpectrumPreprocessUtils::CalculateMassTolerance(ExpSpectrum& expSpectrum)
 {
    if (Param::g_staticParams.tolerances.iPrecursorToleranceUnits == 0) // amu
    {
-      cometSpectrum.expPrecursorMassTolerance = Param::g_staticParams.tolerances.precursorTolerance;
+       expSpectrum.preBasicTolerance = Param::g_staticParams.tolerances.precursorTolerance;
       if (Param::g_staticParams.tolerances.iPrecursorToleranceType == 1)  // precursor m/z tolerance
       {
-         cometSpectrum.expPrecursorMassTolerance *= abs(cometSpectrum.iPrecursorChargeState);
+          expSpectrum.preBasicTolerance *= abs(expSpectrum.iPreCharge);
       }
    }
    else if (Param::g_staticParams.tolerances.iPrecursorToleranceUnits == 1) // mmu
    {
-      cometSpectrum.expPrecursorMassTolerance = Param::g_staticParams.tolerances.precursorTolerance;
-      cometSpectrum.expPrecursorMassTolerance *= 0.001;
+       expSpectrum.preBasicTolerance = Param::g_staticParams.tolerances.precursorTolerance;
+       expSpectrum.preBasicTolerance *= 0.001;
       if (Param::g_staticParams.tolerances.iPrecursorToleranceType == 1)  // precursor m/z tolerance
       {
-         cometSpectrum.expPrecursorMassTolerance *= abs(cometSpectrum.iPrecursorChargeState);
+          expSpectrum.preBasicTolerance *= abs(expSpectrum.iPreCharge);
       }
    }
    else // ppm
    {
-      double dMZ = MassUtils::MassToMZ(cometSpectrum.dExperimentalPrecursorMass, cometSpectrum.iPrecursorChargeState);
+      double dMZ = MassUtils::MassToMZ(expSpectrum.dExpPreMass, expSpectrum.iPreCharge);
 
       // calculate lower/upper ppm bounds in m/z
       double dMZLower = dMZ + (dMZ * Param::g_staticParams.tolerances.precursorTolerance.dStart / 1E6); // dInputToleranceMinus typically has negative sign
       double dMZUpper = dMZ + (dMZ * Param::g_staticParams.tolerances.precursorTolerance.dEnd  / 1E6);
 
-      // convert m/z bounds to neutral mass then add a proton as Comet uses protonated ranges
-      double dMassLower = MassUtils::MZToMass(dMZLower, cometSpectrum.iPrecursorChargeState);
-      double dMassUpper = MassUtils::MZToMass(dMZUpper, cometSpectrum.iPrecursorChargeState);
+      double dMassLower = MassUtils::MZToMass(dMZLower, expSpectrum.iPreCharge);
+      double dMassUpper = MassUtils::MZToMass(dMZUpper, expSpectrum.iPreCharge);
 
       // these are now the mass difference from exp mass (experimental M mass) to lower/upper bounds
-      cometSpectrum.expPrecursorMassTolerance.dStart  = dMassLower - cometSpectrum.dExperimentalPrecursorMass; // usually negative
-      cometSpectrum.expPrecursorMassTolerance.dEnd = dMassUpper - cometSpectrum.dExperimentalPrecursorMass; // usually positive
+      expSpectrum.preBasicTolerance.dStart  = dMassLower - expSpectrum.dExpPreMass; // usually negative
+      expSpectrum.preBasicTolerance.dEnd = dMassUpper - expSpectrum.dExpPreMass; // usually positive
    }
 
    double dC13Diff = (ElementMassUtils::Carbon_13_Mono - ElementMassUtils::Carbon_Mono);
-   vector<int> vC13DiffNums;
-   vC13DiffNums.push_back(0);
+   double dN15Diff = (ElementMassUtils::Nitrogen_15_Mono - ElementMassUtils::Nitrogen_Mono);
+   vector<int> vDiffNums;
+   vDiffNums.push_back(0);
    if (Param::g_staticParams.tolerances.iIsotopeSearchType == 0) //search 0 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd;
+
    }
-   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 1) // search 0, +1 isotope windows
+   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 1) // search 0, -1 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd;
-      vC13DiffNums.push_back(-1);
+      vDiffNums.push_back(-1);
    }
-   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 2) // search 0, +1, +2 isotope windows
+   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 2) // search 0, -1, -2 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - 2.0 * dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd;
-      vC13DiffNums.push_back(-1);
-      vC13DiffNums.push_back(-2);
+       vDiffNums.push_back(-1);
+       vDiffNums.push_back(-2);
    }
-   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 3) // search 0, +1, +2, +3 isotope windows
+   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 3) // search 0, -1, -2, -3 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - 3.0 * dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd;
-      vC13DiffNums.push_back(-1);
-      vC13DiffNums.push_back(-2);
-      vC13DiffNums.push_back(-3);
+       vDiffNums.push_back(-1);
+       vDiffNums.push_back(-2);
+       vDiffNums.push_back(-3);
    }
-   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 4) // search -1, 0, +1, +2, +3 isotope windows
+   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 4) // search +1, 0, -1, -2, -3 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - 3.0 * dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd + 1.0 * dC13Diff;
-      vC13DiffNums.push_back(-1);
-      vC13DiffNums.push_back(-2);
-      vC13DiffNums.push_back(-3);
-      vC13DiffNums.push_back(1);
+      vDiffNums.push_back(-1);
+      vDiffNums.push_back(-2);
+      vDiffNums.push_back(-3);
+      vDiffNums.push_back(1);
    }
-   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 5) // search -1, 0, +1 isotope windows
+   else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 5) // search +1, 0, -1 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd + dC13Diff;
-      vC13DiffNums.push_back(-1);
-      vC13DiffNums.push_back(1);
+       vDiffNums.push_back(-1);
+       vDiffNums.push_back(1);
    }
    else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 6) // search -3, -2, -1, 0, +1, +2, +3 isotope windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - 3.0 * dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd + 3.0 * dC13Diff;
-      vC13DiffNums.push_back(1);
-      vC13DiffNums.push_back(2);
-      vC13DiffNums.push_back(3);
-      vC13DiffNums.push_back(-1);
-      vC13DiffNums.push_back(-2);
-      vC13DiffNums.push_back(-3);
+       vDiffNums.push_back(1);
+       vDiffNums.push_back(2);
+       vDiffNums.push_back(3);
+       vDiffNums.push_back(-1);
+       vDiffNums.push_back(-2);
+       vDiffNums.push_back(-3);
    }
    else if (Param::g_staticParams.tolerances.iIsotopeSearchType == 7) // search -8, -4, 0, 4, 8 windows
    {
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart - 8.0 * dC13Diff;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd + 8.0 * dC13Diff;
-      vC13DiffNums.push_back(-8);
-      vC13DiffNums.push_back(-4);
-      vC13DiffNums.push_back(4);
-      vC13DiffNums.push_back(8);
+       vDiffNums.push_back(-8);
+       vDiffNums.push_back(-4);
+       vDiffNums.push_back(4);
+       vDiffNums.push_back(8);
    }
    else  // Should not get here.
    {
-      char szErrorMsg[256];
-      sprintf(szErrorMsg,  " Error - iIsotopeError=%d\n",  Param::g_staticParams.tolerances.iIsotopeSearchType);
-      logerr(szErrorMsg);
-      cometSpectrum.expPrecursorMassSearchTolerance.dStart = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dStart;
-      cometSpectrum.expPrecursorMassSearchTolerance.dEnd = cometSpectrum.dExperimentalPrecursorMass + cometSpectrum.expPrecursorMassTolerance.dEnd;
+       cout << "Error - iIsotopeError = " << Param::g_staticParams.tolerances.iIsotopeSearchType << endl;
    }
 
    // now set Low/High to mass range around ExpMass
-   cometSpectrum.expPrecursorMassTolerance += cometSpectrum.dExperimentalPrecursorMass;
+   
+   expSpectrum.preBasicTolerance += expSpectrum.dExpPreMass;
 
-   for (int& num : vC13DiffNums)
+   for (int& num : vDiffNums)
    {
-      DoubleRange range = cometSpectrum.expPrecursorMassTolerance;
+       DoubleRange range;
+       range = expSpectrum.preBasicTolerance;
       range += num * dC13Diff;
-      cometSpectrum.vExpPrecursorMassSearchRange.push_back(range);
+      expSpectrum.vPreMassSearchRange.push_back(range);
+
+      range = expSpectrum.preBasicTolerance;
+      range += num * dN15Diff;
+      expSpectrum.vPreMassSearchRange.push_back(range);
    }
+
+   double dSearchMassStart = expSpectrum.preBasicTolerance.dStart;
+   double dSearchMassEnd = expSpectrum.preBasicTolerance.dEnd;
+   for (auto& range : expSpectrum.vPreMassSearchRange)
+   {
+       if (range.dStart < dSearchMassStart)
+           dSearchMassStart = range.dStart;
+
+       if (range.dEnd > dSearchMassEnd)
+           dSearchMassEnd = range.dEnd;
+   }
+
+   expSpectrum.preMassSearchRange.dStart = dSearchMassStart;
+   expSpectrum.preMassSearchRange.dEnd = dSearchMassEnd;
 
    return true;
 }

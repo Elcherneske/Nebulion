@@ -36,7 +36,7 @@ public:
 
    static void OutputOligonucleotides(ofstream& outputStream, vector<Oligonucleotide>& vOligonucleotideList);
 
-   static bool TmpSpectrumOut(ofstream& outputStream, vector<CometSpectrum>& vCometSpectrumList);
+   static bool TmpSpectrumOut(ofstream& outputStream, vector<ExpSpectrum>& vExpSpectrumList);
 
 private:
 

@@ -29,26 +29,26 @@ SearchUtils::~SearchUtils()
 
 bool SearchUtils::MS1Search(Query& query, vector<Oligonucleotide>& vOligonucleotideList)
 {
-    if (query.cometSpectrum == nullptr)
+    if (query.expSpectrum == nullptr)
         return false;
 
-    int index;
-    if ((index = CalculateUtils::BinarySearchOligonucleotideByHighestMass(vOligonucleotideList, query.cometSpectrum->expPrecursorMassSearchTolerance.dStart)) != -1)
+    int index = CalculateUtils::BinarySearchOligonucleotideByHighestMass(vOligonucleotideList, query.expSpectrum->preMassSearchRange.dStart);
+    if (index >= 0 && index < vOligonucleotideList.size())
     {
         for (int i = index; i < vOligonucleotideList.size(); i++)
         {
             Oligonucleotide& oligonucleotide = vOligonucleotideList[i];
             const VarModification& varMod = Param::g_vVarModification[oligonucleotide.iVarModificationIndex];
 
-            if (oligonucleotide.dMass + varMod.varModMassRange.dStart > query.cometSpectrum->expPrecursorMassSearchTolerance.dEnd)
+            if (oligonucleotide.dMass + varMod.varModMassRange.dStart > query.expSpectrum->preMassSearchRange.dEnd)
                 break;
 
             for (int i = 0; i < varMod.vVarModificationMassList.size(); i++)
             {
                 double dVarModMass = varMod.vVarModificationMassList[i];
-                for (DoubleRange& searchRange : query.cometSpectrum->vExpPrecursorMassSearchRange)
+                for (DoubleRange& searchRange : query.expSpectrum->vPreMassSearchRange)
                 {
-                    if (DoubleRange::inRange(searchRange, oligonucleotide.dMass + dVarModMass))
+                    if (searchRange.inRange(oligonucleotide.dMass + dVarModMass))
                     {
                         query.pushBackResult(oligonucleotide, i);
                         break;
@@ -65,7 +65,7 @@ bool SearchUtils::MS1Search(Query& query, vector<Oligonucleotide>& vOligonucleot
 
 bool SearchUtils::QueryScoring(ThreadPool* _tp, Query& query, const vector<Oligonucleotide>& vOligonucleotideList)
 {
-   if(query.cometSpectrum == nullptr)
+   if(query.expSpectrum == nullptr)
       return false;
 
    if (query.vResults.size() == 0)
@@ -74,21 +74,21 @@ bool SearchUtils::QueryScoring(ThreadPool* _tp, Query& query, const vector<Oligo
    // do MS2 match/score
    for (auto& resultItem: query.vResults)
    {
-      SearchUtils::EntryScoring(*(query.cometSpectrum), resultItem.oligo, resultItem.iWhichVarModCombination, resultItem.scores);
+      SearchUtils::EntryScoring(*(query.expSpectrum), resultItem.oligo, resultItem.iWhichVarModCombination, resultItem.scores);
    }
 
    return true;
 }
 
-bool SearchUtils::EntryScoring(const CometSpectrum& cometSpectrum, const Oligonucleotide& oligonucleotide, int iWhichVarModCombination, Scores& result)
+bool SearchUtils::EntryScoring(const ExpSpectrum& expSpectrum, const Oligonucleotide& oligonucleotide, int iWhichVarModCombination, Scores& result)
 {
    bool bSuccessed = true;
-   if (abs(cometSpectrum.iPrecursorChargeState) == 0)
+   if (abs(expSpectrum.iPreCharge) == 0)
    {
        cout << "Error: in scoring procedure, the spectrum precursor state is 0" << endl;
        return false;
    }
-   int iCharge = cometSpectrum.iPrecursorChargeState;
+   int iCharge = expSpectrum.iPreCharge;
 
    //generate fragments
    vector<OligonucleotideFragment> vfragmentList;
@@ -104,10 +104,10 @@ bool SearchUtils::EntryScoring(const CometSpectrum& cometSpectrum, const Oligonu
    vector<double> theoreticalSpectrum;
    vector<double> experimentalSpectrum;
 
-   bSuccessed = GenerateTheoreticalSpectrum(vfragmentList, cometSpectrum.iArraySize, iCharge, theoreticalSpectrum);
+   bSuccessed = GenerateTheoreticalSpectrum(vfragmentList, expSpectrum.iArraySize, iCharge, theoreticalSpectrum);
    if (!bSuccessed)
        return false;
-   bSuccessed = GenerateExperimentalSpectrum(cometSpectrum, experimentalSpectrum);
+   bSuccessed = GenerateExperimentalSpectrum(expSpectrum, experimentalSpectrum);
    if (!bSuccessed)
        return false;
 
@@ -121,7 +121,7 @@ bool SearchUtils::EntryScoring(const CometSpectrum& cometSpectrum, const Oligonu
       result.xCorr = 0;
 
    //cout match fragment
-   vector<pair<int, int>> vIonSpectrumMatch = SearchUtils::FragmentMatchCount(cometSpectrum, vfragmentList); //{peak, fragment}
+   vector<pair<int, int>> vIonSpectrumMatch = SearchUtils::FragmentMatchCount(expSpectrum, vfragmentList); //{peak, fragment}
    result.matchedIons = vIonSpectrumMatch.size();
 
    //calculate Sp bonus
@@ -138,8 +138,8 @@ bool SearchUtils::EntryScoring(const CometSpectrum& cometSpectrum, const Oligonu
 
    //calculate Sp
    double dMatchIntensity = 0.0;
-   Spectrum spec = Spectrum(cometSpectrum.spectrum);
-   double dHighestIntensity = spec.at(cometSpectrum.iHighestIonIndex).intensity;
+   Spectrum spec = Spectrum(expSpectrum.spectrum);
+   double dHighestIntensity = spec.at(expSpectrum.iHighestIonIndex).intensity;
    double dTotalIntensity = 0.0;
    for (auto& pair : vIonSpectrumMatch)
    {
@@ -147,7 +147,7 @@ bool SearchUtils::EntryScoring(const CometSpectrum& cometSpectrum, const Oligonu
       dMatchIntensity += dIntensity;
    }
 
-   result.dSp = dMatchIntensity/cometSpectrum.dTotalIntensity * ((double)(1+iConsec)/(double)(result.totalIons));
+   result.dSp = dMatchIntensity/ expSpectrum.dTotalIntensity * ((double)(1+iConsec)/(double)(result.totalIons));
    if (result.dSp < CommonValues::dFloatZero)
       result.dSp = 0;
    return true;
@@ -186,11 +186,11 @@ bool SearchUtils::GenerateTheoreticalSpectrum(vector<OligonucleotideFragment> fr
    return true;
 }
 
-bool SearchUtils::GenerateExperimentalSpectrum(const CometSpectrum& cometSpectrum, vector<double>& vSpectrumSignal)
+bool SearchUtils::GenerateExperimentalSpectrum(const ExpSpectrum& expSpectrum, vector<double>& vSpectrumSignal)
 {
     vSpectrumSignal.clear();
-    vSpectrumSignal.assign(cometSpectrum.iArraySize, 0.0);
-   Spectrum spectrum = Spectrum(cometSpectrum.spectrum);
+    vSpectrumSignal.assign(expSpectrum.iArraySize, 0.0);
+   Spectrum spectrum = Spectrum(expSpectrum.spectrum);
    double dMaxIntensity = 0.0;
    for (int i = 0; i < spectrum.size(); i++)
    {
@@ -213,11 +213,11 @@ bool SearchUtils::GenerateExperimentalSpectrum(const CometSpectrum& cometSpectru
    return true;
 }
 
-vector<pair<int, int>> SearchUtils::FragmentMatchCount(const CometSpectrum& cometSpectrum, const vector<OligonucleotideFragment>& vFragmentList)
+vector<pair<int, int>> SearchUtils::FragmentMatchCount(const ExpSpectrum& expSpectrum, const vector<OligonucleotideFragment>& vFragmentList)
 {
    int iMatchCount = 0;
    vector<pair<int, int>> vMatchIndex;
-   Spectrum spectrum = Spectrum(cometSpectrum.spectrum);
+   Spectrum spectrum = Spectrum(expSpectrum.spectrum);
    for (int i = 0; i < spectrum.size(); i++)
    {
       Peak_T peak = spectrum.at(i);

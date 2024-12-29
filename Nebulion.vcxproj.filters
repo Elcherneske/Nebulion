@@ -15,10 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="comet.params">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="ecoli.fasta">
+    <None Include="nebulion.params">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="StaticMod.params">
@@ -27,12 +24,7 @@
     <None Include="VarMod.params">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="Lumos.mgf">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="QTOF.mgf">
-      <Filter>Resource Files</Filter>
-    </None>
+    <None Include=".gitignore" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Nebulion.cpp">

@@ -28,17 +28,15 @@ public:
 
    static MSReader& getMSReader();
 
-   static bool LoadAllSpectrum(vector<InputFile>& inputFiles, vector<std::pair<InputFile, vector<CometSpectrum>>>& vInputFileCometSpectrumPair);
+   static bool LoadSpectrum(InputFile& inputFile, vector<ExpSpectrum>& vSpectrumList);
 
-   static bool LoadSpectrum(InputFile& inputFile, vector<CometSpectrum>& vCometSpectrumList);
-
-   static bool PreprocessSpectrum(Spectrum& spec, vector<CometSpectrum>& cometSpectrumList);
+   static bool PreprocessSpectrum(Spectrum& spec, vector<ExpSpectrum>& vSpectrumList);
 
 private:
 
     static MSReader msreader;
 
-    static bool CalculateMassTolerance(CometSpectrum& cometSpectrum);
+    static bool CalculateMassTolerance(ExpSpectrum& expSpectrum);
 
 };
 

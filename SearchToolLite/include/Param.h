@@ -366,7 +366,7 @@ class Param
 {
 public:
     static StaticParams                                 g_staticParams;         //static paramter, should not change in the program
-    static string                                       g_sCometVersion;
+    static string                                       g_sNebulionVersion;
     static MassChargeRange                              g_mcRange;
     static vector<InputFile>                            g_vInputFiles;
     static vector<NucleicAcid>                          g_vNucleicAcid;

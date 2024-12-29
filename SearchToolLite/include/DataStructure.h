@@ -68,6 +68,13 @@ struct DoubleRange
       return to_string(dStart) + " -- " + to_string(dEnd);
    }
 
+   bool inRange(double value)
+   {
+       if (this->dStart <= value && value <= this->dEnd)
+           return true;
+       return false;
+   }
+
    static bool inRange(DoubleRange range, double value)
    {
       if (range.dStart <= value && value <= range.dEnd)
@@ -125,6 +132,13 @@ struct IntRange
       return to_string(iStart) + " -- " + to_string(iEnd);
    }
 
+   bool inRange(int value)
+   {
+       if (this->iStart <= value && value <= this->iEnd)
+           return true;
+       return false;
+   }
+
    static bool inRange(IntRange range, int value)
    {
       if (range.iStart <= value && value <= range.iEnd)
@@ -170,74 +184,57 @@ struct Scores
       }
         return *this;
     }
-
-   void printContent(std::ofstream& stream) const
-   {
-      stream << "# Cross-correlation (xCorr): " << xCorr << std::endl;
-      stream << "# Sp Score (dSp): " << dSp << std::endl;
-      stream << "# Delta Cn (dCn): " << dCn << std::endl;
-      stream << "# Expectation Value (dExpect): " << dExpect << std::endl;
-      stream << "# Matched Ions: " << matchedIons << std::endl;
-      stream << "# Total Ions: " << totalIons << std::endl;
-   }
-
-   void printHeader(std::ofstream& stream) const
-   {
-      stream << "# Match Scores:" << std::endl;
-      stream << "# -------------------" << std::endl;
-   }
-
 };
 
-struct CometSpectrum
+struct ExpSpectrum
 {
    Spectrum spectrum;
-   double   dExperimentalPrecursorMass;                  //M mass
-   int      iPrecursorChargeState;
-   DoubleRange expPrecursorMassTolerance;
-   DoubleRange expPrecursorMassSearchTolerance;
-   vector<DoubleRange> vExpPrecursorMassSearchRange;      
+   double   dExpPreMass;                                 //M mass
+   int      iPreCharge;
+   DoubleRange preBasicTolerance;
+   DoubleRange preMassSearchRange;
+   vector<DoubleRange> vPreMassSearchRange;      
    int      iArraySize;                                  // m/z versus intensity array
    int      iHighestIonIndex;
    double   dTotalIntensity;
 
-   CometSpectrum() 
+   ExpSpectrum()
    {
-      dExperimentalPrecursorMass = 0.0;
-      iPrecursorChargeState = 0;
-      expPrecursorMassTolerance = DoubleRange(0.0, 0.0);
-      expPrecursorMassSearchTolerance = DoubleRange(0.0, 0.0);
-      iArraySize = 0;
-      iHighestIonIndex = 0;
-      dTotalIntensity = 0.0;
+       dExpPreMass = 0.0;
+       iPreCharge = 0;
+       preBasicTolerance = DoubleRange(0.0, 0.0);
+       preMassSearchRange = DoubleRange(0.0, 0.0);
+       iArraySize = 0;
+       iHighestIonIndex = 0;
+       dTotalIntensity = 0.0;
    }
 
-   CometSpectrum(const CometSpectrum& other)
+   ExpSpectrum(const ExpSpectrum& other)
    {
       spectrum = other.spectrum;
-      dExperimentalPrecursorMass = other.dExperimentalPrecursorMass;
-      iPrecursorChargeState = other.iPrecursorChargeState;
-      expPrecursorMassTolerance = other.expPrecursorMassTolerance;
-      expPrecursorMassSearchTolerance = other.expPrecursorMassSearchTolerance;
+      dExpPreMass = other.dExpPreMass;
+      iPreCharge = other.iPreCharge;
+      preBasicTolerance = other.preBasicTolerance;
+      preMassSearchRange = other.preMassSearchRange;
       iArraySize = other.iArraySize;
       iHighestIonIndex = other.iHighestIonIndex;
       dTotalIntensity = other.dTotalIntensity;
-      vExpPrecursorMassSearchRange = other.vExpPrecursorMassSearchRange;
+      vPreMassSearchRange = other.vPreMassSearchRange;
    }
 
-   CometSpectrum& operator=(const CometSpectrum& other) 
+   ExpSpectrum& operator=(const ExpSpectrum& other)
    {
       if (this != &other) 
       {
          spectrum = other.spectrum;
-         dExperimentalPrecursorMass = other.dExperimentalPrecursorMass;
-         iPrecursorChargeState = other.iPrecursorChargeState;
-         expPrecursorMassTolerance = other.expPrecursorMassTolerance;
-         expPrecursorMassSearchTolerance = other.expPrecursorMassSearchTolerance;
+         dExpPreMass = other.dExpPreMass;
+         iPreCharge = other.iPreCharge;
+         preBasicTolerance = other.preBasicTolerance;
+         preMassSearchRange = other.preMassSearchRange;
          iArraySize = other.iArraySize;
          iHighestIonIndex = other.iHighestIonIndex;
          dTotalIntensity = other.dTotalIntensity;
-         vExpPrecursorMassSearchRange = other.vExpPrecursorMassSearchRange;
+         vPreMassSearchRange = other.vPreMassSearchRange;
       }
       return *this;
    }
@@ -736,19 +733,19 @@ struct Query
    };
 
    vector<QueryEntry> vResults;
-   CometSpectrum*        cometSpectrum;                              // experiment spectrum 
+   ExpSpectrum*       expSpectrum;                              // experiment spectrum 
 
    Mutex accessMutex;
 
    Query()
    {
-      cometSpectrum = nullptr;
-      Threading::CreateMutex(&accessMutex);
+       expSpectrum = nullptr;
+       Threading::CreateMutex(&accessMutex);
    }
 
    ~Query()
    {
-      Threading::DestroyMutex(accessMutex);
+       Threading::DestroyMutex(accessMutex);
    }
 
    void pushBackResult(Oligonucleotide& oligo, int iWhichVarModCombination)

@@ -55,9 +55,6 @@ private:
 class CombinatoricsUtils
 {
 public:
-    CombinatoricsUtils();
-    ~CombinatoricsUtils();
-
     static int** makeCombinations(int n, int r, int count);
 
     static int nChooseK(int n, int k);

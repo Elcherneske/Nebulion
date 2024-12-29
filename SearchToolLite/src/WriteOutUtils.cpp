@@ -78,7 +78,7 @@ bool WriteOutUtils::QueryCSVOutput(ofstream& outputStream, Query& query, bool he
 
    for (const auto& result : query.vResults) 
    {
-      if (query.cometSpectrum == nullptr)
+      if (query.expSpectrum == nullptr)
       {
          string sErrorMsg = "Error: query cometSpectrum pointer is NULL; \n";
          logerr(sErrorMsg.c_str());
@@ -88,8 +88,8 @@ bool WriteOutUtils::QueryCSVOutput(ofstream& outputStream, Query& query, bool he
       const Oligonucleotide& oligonucleotide = result.oligo;
 
       double precursorMz = 0.0; 
-      if (query.cometSpectrum) {
-         precursorMz = query.cometSpectrum->spectrum.getMZ();
+      if (query.expSpectrum) {
+         precursorMz = query.expSpectrum->spectrum.getMZ();
       }
 
       outputStream << fixed << setprecision(8);
@@ -201,12 +201,12 @@ void WriteOutUtils::OutputOligonucleotides(ofstream& outputStream, vector<Oligon
 
 }
 
-bool WriteOutUtils::TmpSpectrumOut(ofstream& outputStream, vector<CometSpectrum>& vCometSpectrumList)
+bool WriteOutUtils::TmpSpectrumOut(ofstream& outputStream, vector<ExpSpectrum>& vSpectrumList)
 {
    outputStream << std::setprecision(16);
-   for(auto& cometSpectrum : vCometSpectrumList)
+   for(auto& expSpectrum : vSpectrumList)
    {
-      outputStream << cometSpectrum.spectrum.getMZ() << "\t" << endl;
+      outputStream << expSpectrum.spectrum.getMZ() << "\t" << endl;
    }
    return true;
 }

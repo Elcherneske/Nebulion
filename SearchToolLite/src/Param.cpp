@@ -21,7 +21,7 @@ vector<InputFile>                  Param::g_vInputFiles;
 vector<NucleicAcid>                Param::g_vNucleicAcid;
 vector<Oligonucleotide>            Param::g_vOligonucleotide;
 vector<VarModification>            Param::g_vVarModification;
-string                             Param::g_sCometVersion = comet_version;
+string                             Param::g_sNebulionVersion = nebulion_version;
 //CometStatus                        Param::g_cometStatus;
 Mutex                              Param::g_mcRangeMutex;
 Mutex                              Param::g_vInputFileMutex;
@@ -181,22 +181,20 @@ bool Param::loadParam(string sParamFilename)
 
     if (!paramFile) // open fail
     {
-        string sErrorMsg = "\n Comet version %s\n\n" + g_sCometVersion + " Error - cannot open parameter file \"%s\".\n" + sParamFilename;
-        logerr(sErrorMsg.c_str());
+        cout << "\n Nebulion version %s\n\n" + g_sNebulionVersion + " Error - cannot open parameter file \"%s\".\n" + sParamFilename << endl;
         return false;
     }
 
-    //get comet version
+    //get nebulion version
     getline(paramFile, sLine);
     stringStream = istringstream(sLine);
     stringStream >> sTmpStr >> sTmpStr >> sTmpStr;
-    if (sTmpStr == "2024.02")
-        g_sCometVersion = sTmpStr;
+    if (sTmpStr == "2024.12")
+        g_sNebulionVersion = sTmpStr;
     else
     {
-        string sErrorMsg = "\n Comet version %s\n\n" + g_sCometVersion + " The comet.params file is from version %s\n" + sTmpStr
-            + " Please update your comet.params file.  You can generate\n" + " a new parameters file using \"comet -p\"\n\n";
-        logerr(sErrorMsg.c_str());
+        cout << "\n Nebulion version %s\n\n" + g_sNebulionVersion + " The nebulion.params file is from version %s\n" + sTmpStr
+            + " Please update your nebulion.params file.  You can generate\n" + " a new parameters file using \"nebulion -p\"\n" << endl;
         return false;
     }
 
@@ -204,7 +202,7 @@ bool Param::loadParam(string sParamFilename)
         if (sLine.find('#') != std::string::npos)
             sLine.erase(sLine.find('#'));
 
-        if (sLine.find("[COMET_ENZYME_INFO]") != string::npos)
+        if (sLine.find("[ENZYME_INFO]") != string::npos)
             break;
 
         stringStream = istringstream(sLine);
@@ -610,14 +608,13 @@ void Param::printParams(string sParamFilename, int option)
     ofstream paramFile(sParamFilename);
     if (!paramFile)
     {
-        string sErrorMsg = "\n Comet version %s\n\n" + g_sCometVersion + " Error - cannot write file comet.params.new\n" + sParamFilename;
-        logerr(sErrorMsg.c_str());
+        cout << "\n Nebulion version %s\n\n" + g_sNebulionVersion + " Error - cannot write file comet.params.new\n" + sParamFilename << endl;
         exit(0);
     }
 
-    // 1. 写入基本的注释和 Comet 版本信息
-    paramFile << "# comet_version " + g_sCometVersion << endl;
-    paramFile << "# Comet MS/MS search engine parameters file." << endl;
+    // 1. 写入基本的注释和 Nebulion 版本信息
+    paramFile << "# nebulion_version " + g_sNebulionVersion << endl;
+    paramFile << "# Nebulion MS/MS search engine parameters file." << endl;
     paramFile << "# Everything following the '#' symbol is treated as a comment." << endl;
 
     // 2. 数据库相关设置
@@ -635,11 +632,11 @@ void Param::printParams(string sParamFilename, int option)
     paramFile << "precursor_tolerance_upper = 16.0                    # upper bound of the precursor mass tolerance" << endl;
     paramFile << "precursor_tolerance_lower = -16.0                   # lower bound of the precursor mass tolerance; USUALLY NEGATIVE TO BE LOWER THAN 0" << endl;
     paramFile << "precursor_tolerance_units = 2                       # 0=amu, 1=mmu, 2=ppm" << endl;
-    paramFile << "precursor_tolerance_type = 1                        # 0=MH+ (default), 1=precursor m/z; only valid for amu/mmu tolerances" << endl;
+    paramFile << "precursor_tolerance_type = 1                        # 0=Mass (default), 1=precursor m/z; only valid for amu/mmu tolerances" << endl;
     paramFile << "fragment_tolerance_upper = 16.0                     # upper bound of the precursor mass tolerance" << endl;
     paramFile << "fragment_tolerance_lower = -16.0                    # lower bound of the precursor mass tolerance; USUALLY NEGATIVE TO BE LOWER THAN 0" << endl;
     paramFile << "fragment_tolerance_units = 2                        # 0=amu, 1=mmu, 2=ppm" << endl;
-    paramFile << "fragment_tolerance_type = 1                         # 0=MH+ (default), 1 = m/z; only valid for amu/mmu tolerances" << endl;
+    paramFile << "fragment_tolerance_type = 1                         # 0=Mass (default), 1 = m/z; only valid for amu/mmu tolerances" << endl;
     paramFile << "isotope_error = 0                                   # 0=off, 1=0/1 (C13 error), 2=0/1/2, 3=0/1/2/3, 4=-1/0/1/2/3, 5=-1/0/1" << endl;
     paramFile << "mass_type = 1                                       # 0=average masses, 1=monoisotopic masses" << endl;
     paramFile << "deoxidation = 0                                     # 0 = RNA, 1 = DNA" << endl;
@@ -652,13 +649,13 @@ void Param::printParams(string sParamFilename, int option)
     paramFile << "max_precursor_charge = 6                            # set maximum precursor charge state to analyze" << endl;
     paramFile << "min_fragment_charge = 1" << endl;
     paramFile << "min_precursor_charge = 1" << endl;
-    paramFile << "positive_charge = 1                                 # 0 = negtive, 1 = positive" << endl;
+    paramFile << "positive_charge = 0                                 # 0 = negtive, 1 = positive" << endl;
 
     // 5. 线程设置
     paramFile << "#" << endl;
     paramFile << "# thread parameter" << endl;
     paramFile << "#" << endl;
-    paramFile << "num_threads = 0                                   # 0=poll CPU to set num threads; else specify num threads directly (recommand max 128)" << endl;
+    paramFile << "num_threads = 0                                   # 0 = poll CPU to set num threads; else specify num threads directly (recommand max 128)" << endl;
 
     // 6. 酶切设定
     paramFile << "#" << endl;
@@ -727,17 +724,17 @@ void Param::printParams(string sParamFilename, int option)
 
     // 11. 酶信息（必须放在文件末尾）
     paramFile << "#" << endl;
-    paramFile << "# COMET_ENZYME_INFO _must_ be at the end of this parameters file" << endl;
+    paramFile << "# ENZYME_INFO _must_ be at the end of this parameters file" << endl;
     paramFile << "# Enzyme entries can be added/deleted/edited" << endl;
     paramFile << "# format: <enzyme name> <whether 3' cut> <cut nucleotide> <no cut nucleotide>" << endl;
     paramFile << "#" << endl;
-    paramFile << "[COMET_ENZYME_INFO]" << endl;
+    paramFile << "[ENZYME_INFO]" << endl;
     paramFile << "0. Cut_everywhere 0 - -" << endl;
     paramFile << "1. Enzyme_A 0 A -" << endl;
     paramFile << "2. Enzyme_T1 1 G  -" << endl;
     paramFile << "3. No_cut 1 @ @" << endl;
 
-    logout("\n Created:  comet.params.new\n\n");
+    logout("\n Created:  nebulion.params.new\n\n");
 
     exit(1);
 }
@@ -752,12 +749,12 @@ bool Param::ProcessCmdLine(int argc, char* argv[])
 
     if (argc == 1)
     {
-        string sErrorMsg = "\n Comet version %s\n\n" + g_sCometVersion + " Error - no input files specified so nothing to do.\n";
+        string sErrorMsg = "\n Nebulion version %s\n\n" + g_sNebulionVersion + " Error - no input files specified so nothing to do.\n";
         logerr(sErrorMsg.c_str());
         exit(1);
     }
 
-    sParamsFilename = "./comet.params";                    //default parameter file name, may change in SetOptions(...) function
+    sParamsFilename = "./nebulion.params";                    //default parameter file name, may change in SetOptions(...) function
 
     //read all args
     while (iArgvIndex < argc)
@@ -773,14 +770,14 @@ bool Param::ProcessCmdLine(int argc, char* argv[])
         if (arg[0] == '-' && arg[1] == 'P')
             sParamsFilename = arg.substr(2);
         if (arg[0] == '-' && arg[1] == 'p')
-            Param::printParams("./comet.params.new", 1);
+            Param::printParams("./nebulion.params.new", 1);
         if (arg[0] == '-' && arg[1] == 'q')
-            Param::printParams("./comet.params.new", 2);
+            Param::printParams("./nebulion.params.new", 2);
     }
 
     if (!Param::loadParam(sParamsFilename))
     {
-        string sErrorMsg = "\n Comet version " + g_sCometVersion + "\n\n" + " Error - load parameter file fail. \n";
+        string sErrorMsg = "\n Nebulion version " + g_sNebulionVersion + "\n\n" + " Error - load parameter file fail. \n";
         logerr(sErrorMsg.c_str());
         return false;
     }
@@ -794,7 +791,7 @@ bool Param::ProcessCmdLine(int argc, char* argv[])
         {
             if (!IsValidInputFile(arg))
             {
-                string sErrorMsg = "\n Comet version " + g_sCometVersion + "\n\n" + " Error - input file \"" + arg + "\" not found.\n";
+                string sErrorMsg = "\n Nebulion version " + g_sNebulionVersion + "\n\n" + " Error - input file \"" + arg + "\" not found.\n";
                 logerr(sErrorMsg.c_str());
                 return false;
             }
@@ -814,18 +811,18 @@ bool Param::printUsage(string sCmd)
     string sLogMsg;
 
     logout("\n");
-    sLogMsg = " Comet version \" " + g_sCometVersion + "\"\n";
+    sLogMsg = " Nebulion version \" " + g_sNebulionVersion + "\"\n";
     logout(sLogMsg.c_str());
     logout("\n");
-    sLogMsg = " Comet usage:  " + sCmd + "\"\n";
+    sLogMsg = " Nebulion usage:  " + sCmd + "\"\n";
     logout(sLogMsg.c_str());
     logout("\n");
     logout(" Supported input formats include mzXML, mzML, Thermo raw, mgf, and ms2 variants (cms2, bms2, ms2)\n");
 
     logout("\n");
-    logout("       options:  -p         to print out a comet.params.new file\n");
-    logout("                 -q         to print out a comet.params.new file with more parameter entries\n");
-    logout("                 -P<params> to specify an alternate parameters file (default comet.params)\n");
+    logout("       options:  -p         to print out a nebulion.params.new file\n");
+    logout("                 -q         to print out a nebulion.params.new file with more parameter entries\n");
+    logout("                 -P<params> to specify an alternate parameters file (default nebulion.params)\n");
     logout("                 -D<dbase>  to specify a sequence database, overriding entry in parameters file\n");
     logout("                 -F<num>    to specify the first/start scan to search, overriding entry in parameters file\n");
     logout("                 -L<num>    to specify the last/end scan to search, overriding entry in parameters file\n");

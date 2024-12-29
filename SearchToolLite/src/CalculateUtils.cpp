@@ -144,7 +144,7 @@ void CalculateUtils::SortQueryByPrecursorMZ(vector<Query>& vQueryList)
     std::sort(vQueryList.begin(), vQueryList.end(), 
             [](const Query& a, const Query& b) 
             {
-                return a.cometSpectrum->spectrum.getMZ() < b.cometSpectrum->spectrum.getMZ();
+                return a.expSpectrum->spectrum.getMZ() < b.expSpectrum->spectrum.getMZ();
             }
     );
 }

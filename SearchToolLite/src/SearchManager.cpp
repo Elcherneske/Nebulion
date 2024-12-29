@@ -235,7 +235,7 @@ bool SearchManager::DoSearch()
     if (!Param::CheckParamsValidation()) return false;
 
     {
-        cout << "Comet version \"" + Param::g_sCometVersion + "\"" << endl << endl;
+        cout << "Comet version \"" + Param::g_sNebulionVersion + "\"" << endl << endl;
     }
 
    {
@@ -271,7 +271,7 @@ bool SearchManager::DoSearch()
    for (int i=0; i<(int)Param::g_vInputFiles.size(); ++i) //对每个inputfile读取并搜索
    {
       InputFile inputFile = Param::g_vInputFiles[i];
-      vector<CometSpectrum> vSpectrumList;
+      vector<ExpSpectrum> vSpectrumList;
       vector<Query> vQueries;
 
       {
@@ -286,9 +286,9 @@ bool SearchManager::DoSearch()
 
       for (int spec_index = 0; spec_index < vSpectrumList.size(); spec_index++)
       {
-          CometSpectrum& cometspectrum = vSpectrumList[spec_index];
+          ExpSpectrum& expspectrum = vSpectrumList[spec_index];
           Query query;
-          query.cometSpectrum = &cometspectrum;
+          query.expSpectrum = &expspectrum;
 
           bSucceeded = SearchUtils::MS1Search(query, Param::g_vOligonucleotide);
 

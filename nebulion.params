@@ -1,8 +1,8 @@
-# comet_version 2024.02 rev. 0
-# Comet MS/MS search engine parameters file.
+# nebulion_version 2024.12 rev. 0
+# Nebulion MS/MS search engine parameters file.
 # Everything following the '#' symbol is treated as a comment.
 #
-database_name = ecoli.fasta.idx
+database_name = ./resource/ecoli.fasta.idx
 decoy_search = 1                       # 0=no (default), 1=decoy
 decoy_kind = 1                         # 0=reverse, 1=shuffle
 
@@ -92,11 +92,11 @@ spectrum_batch_size = 15000            # max. # of spectra to search at a time; 
 
 
 #
-# COMET_ENZYME_INFO _must_ be at the end of this parameters file
+# ENZYME_INFO _must_ be at the end of this parameters file
 # Enzyme entries can be added/deleted/edited
 # format: <enzyme name> <whether 3' cut> <cut nucleotide> <no cut nucleotide>
 #
-[COMET_ENZYME_INFO]
+[ENZYME_INFO]
 0.  Cut_everywhere         0      -           -
 1.  Enzyme_A               0      A           -
 2.  Enzyme_T1              1      G           -
