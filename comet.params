@@ -2,7 +2,7 @@
 # Comet MS/MS search engine parameters file.
 # Everything following the '#' symbol is treated as a comment.
 #
-database_name = ecoli.fasta.idx
+database_name = ./resource/ecoli.fasta.idx
 decoy_search = 1                       # 0=no (default), 1=decoy
 decoy_kind = 1                         # 0=reverse, 1=shuffle
 
