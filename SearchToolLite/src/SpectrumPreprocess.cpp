@@ -195,7 +195,10 @@ bool SpectrumPreprocessUtils::PreprocessSpectrum(Spectrum& spec, vector<ExpSpect
             {
                 dTotalIntensity += expSpectrum.spectrum[j].dIntensity;
                 if (expSpectrum.spectrum[j].dIntensity > dHighestIntensity)
+                {
                     expSpectrum.iHighestIonIndex = j;
+                    dHighestIntensity = expSpectrum.spectrum[j].dIntensity;
+                }
             }
             expSpectrum.dTotalIntensity = dTotalIntensity;
 

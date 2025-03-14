@@ -27,10 +27,10 @@ public:
     ~CalculateUtils();
 
     double FastXcorrCalculate(const vector<double>& theoreticalSignal, const vector<double>& experimentSignal, int offset);
-    double FastXcorrCalculate(int* theoreticalSignal, int* experimentalSignal, int iArraySize, int offset);
+    double FastXcorrCalculate(double* theoreticalSignal, double* experimentalSignal, int iArraySize, int offset);
 
     double VectorDot(const vector<double>& vec1, const vector<double>& vec2);
-    double VectorDot(int* vec1, int* vec2, int iArraySize);
+    double VectorDot(double* vec1, double* vec2, int iArraySize);
 
     void SortQueryResultBySp(Query& query);
 
@@ -45,7 +45,7 @@ public:
 private:
 
     vector<double> PreprocessSpectrumSignal(const vector<double>& inputSignal, int offset);
-    void PreprocessSpectrumSignal(int* inputSignal, int iArraySize, int offset);
+    void PreprocessSpectrumSignal(double* inputSignal, int iArraySize, int offset);
 
 };
 

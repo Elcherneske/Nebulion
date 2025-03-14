@@ -81,7 +81,7 @@ void WriteOutUtils::QueriesCSVOutput(const std::string& outputFilename, const st
       return;
    }
 
-   outputStream << "Precursor Mz, Sequence, Mass, NucleicAcid Origin, IsDecoy, 3-end modificastion, 5-end modification, Static Modifications, Variable Modification, XCorr\n";
+   outputStream << "Precursor Mz, Sequence, Mass, NucleicAcid Origin, IsDecoy, 3-end modificastion, 5-end modification, Static Modifications, Variable Modification, XCorr, Entropy, dSp, match ion count, total ion count\n";
 
    for (const auto& query : vQueries) 
    {
@@ -130,7 +130,7 @@ void WriteOutUtils::QueriesCSVOutput(const std::string& outputFilename, const st
          outputStream << "-" << ",";
 
          // 输出打分信息
-         outputStream << entry.scores.xCorr << "\n";
+         outputStream << entry.scores.xCorr << "," << entry.scores.entropy << "," << entry.scores.dSp << "," << entry.scores.iMatchIonCount << "," << entry.scores.iTotalIonCount << "\n";
       }
    
    }

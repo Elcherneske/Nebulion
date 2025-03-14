@@ -129,21 +129,28 @@ struct IntRange
 struct RoughScore
 {
     double xCorr;
+    double entropy;
     double dSp;
     double dCn;
-    int matchedIons;
-    int totalIons;
+    int iMatchIonCount;
+    int iTotalIonCount;
 
     RoughScore() {
-      xCorr = dSp = dCn = matchedIons = totalIons = 0;
+      xCorr = 0;
+      dSp = 0;
+      dCn = 0;
+      iMatchIonCount = 0;
+      iTotalIonCount = 0;
+      entropy = 0;
     }
 
     RoughScore(const RoughScore& other) {
       xCorr = other.xCorr;
       dSp = other.dSp;
       dCn = other.dCn;
-      matchedIons = other.matchedIons;
-      totalIons = other.totalIons;
+      iMatchIonCount = other.iMatchIonCount;
+      iTotalIonCount = other.iTotalIonCount;
+      entropy = other.entropy;
     }
 
     RoughScore& operator=(const RoughScore& other) {
@@ -151,8 +158,9 @@ struct RoughScore
          xCorr = other.xCorr;
          dSp = other.dSp;
          dCn = other.dCn;
-         matchedIons = other.matchedIons;
-         totalIons = other.totalIons;
+         iMatchIonCount = other.iMatchIonCount;
+         iTotalIonCount = other.iTotalIonCount;
+         entropy = other.entropy;
       }
         return *this;
     }

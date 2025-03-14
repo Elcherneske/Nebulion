@@ -56,7 +56,7 @@ vector<double> CalculateUtils::PreprocessSpectrumSignal(const vector<double>& in
     return vResult;
 }
 
-void CalculateUtils::PreprocessSpectrumSignal(int* inputSignal, int iArraySize, int offset)
+void CalculateUtils::PreprocessSpectrumSignal(double* inputSignal, int iArraySize, int offset)
 {
     // Make fast xcorr spectrum.
     double dSum=0.0;
@@ -65,6 +65,8 @@ void CalculateUtils::PreprocessSpectrumSignal(int* inputSignal, int iArraySize, 
     vector<double> vRawSignal = vector<double>(iArraySize);
     for (size_t iIndex = 0; iIndex < iArraySize; ++iIndex)
         vRawSignal[iIndex] = inputSignal[iIndex];
+
+    double tmp = std::accumulate(vRawSignal.begin(), vRawSignal.end(), 0);
 
     if (offset <= 0)
         return;
@@ -95,7 +97,7 @@ double CalculateUtils::FastXcorrCalculate(const vector<double>& vTheoreticalSign
     return VectorDot(vTheoreticalSignal, vProcessedExperimentSignal);
 }
 
-double CalculateUtils::FastXcorrCalculate(int* theoreticalSignal, int* experimentalSignal, int iArraySize, int offset)
+double CalculateUtils::FastXcorrCalculate(double* theoreticalSignal, double* experimentalSignal, int iArraySize, int offset)
 {
     if (iArraySize == 0)
         return 0;
@@ -112,7 +114,7 @@ double CalculateUtils::VectorDot(const vector<double>& vec1, const vector<double
     return std::inner_product(vec1.begin(), vec1.end(), vec2.begin(), 0.0);
 }
 
-double CalculateUtils::VectorDot(int* vec1, int* vec2, int iArraySize)
+double CalculateUtils::VectorDot(double* vec1, double* vec2, int iArraySize)
 {
     if (iArraySize == 0)
         return 0;

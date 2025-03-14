@@ -32,7 +32,14 @@ public:
 
    bool PrecursorFilter(ThreadPool* _tp, Query& query, const vector<Oligonucleotide>& vOligo);
 
-   bool RoughScoring(ThreadPool* _tp, Query& query);
+   bool XcorrScoring(ThreadPool* _tp, Query& query);
+   double XcorrScoring(ThreadPool* _tp, const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragments);
+
+   bool EntropyScoring(ThreadPool* _tp, Query& query);
+   double EntropyScoring(ThreadPool* _tp, const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragments);
+
+   bool IonMatchScoring(ThreadPool* _tp, Query& query);
+   double IonMatchScoring(ThreadPool* _tp, const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragments);
 
    static SearchUtils& getInstance()
    {
@@ -40,13 +47,17 @@ public:
       return instance;
    }
 
+   double dTimeFragment;
+   double dTimeXcorrCalculate;
+
 private:
    // Core search functions
-   int* CalTheoreticalSpectrum(const vector<OligoFragment>& vFragments, int iArraySize);
+   double* CalTheoreticalSpectrum(const vector<OligoFragment>& vFragments, int iArraySize);
 
-   int* CalExperimentalSpectrum(const ExpSpectrum& expSpectrum);
+   double* CalExperimentalSpectrum(const ExpSpectrum& expSpectrum);
 
-   // vector<pair<int, int>> FragmentMatchCount(const ExpSpectrum& expSpectrum, const vector<OligonucleotideFragment>& vFragmentList);
+   // {peak_index, fragment_index} 
+   vector<pair<int, int>> FragmentMatchCount(const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragmentList);
 
    std::map<OligonucleotideID, vector<OligoFragment>> mOligoIDFragments;
 };

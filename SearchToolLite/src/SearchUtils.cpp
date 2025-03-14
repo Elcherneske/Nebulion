@@ -17,7 +17,6 @@
 #include "MassUtils.h"
 #include "CalculateUtils.h"
 #include "OligoProcessUtils.h"
-
 #include <vector>
 
 
@@ -49,117 +48,202 @@ bool SearchUtils::PrecursorFilter(ThreadPool* _tp, Query& query, const vector<Ol
    return true;
 }
 
-bool SearchUtils::RoughScoring(ThreadPool* _tp, Query& query)
+bool SearchUtils::XcorrScoring(ThreadPool* _tp, Query& query)
 {
    if (query.vOligoEntries.size() == 0)
        return true;
 
    for (auto& oligoEntry: query.vOligoEntries)
    {
-       vector<OligoFragment> vFragments;
-      if (mOligoIDFragments.find(oligoEntry.oligoID) != mOligoIDFragments.end())
-          vFragments = mOligoIDFragments[oligoEntry.oligoID];
-      else
-      {
-          vFragments = OligoProcessUtils::getInstance().GenerateFragments(Param::getInstance().vOligos[oligoEntry.oligoID.iOligoIndex], query.expSpectrum.iPreCharge, oligoEntry.oligoID);
-          mOligoIDFragments[oligoEntry.oligoID] = vFragments;
-      }
+      auto startTime = std::chrono::high_resolution_clock::now();
+      vector<OligoFragment> vFragments = OligoProcessUtils::getInstance().GenerateFragments(Param::getInstance().vOligos[oligoEntry.oligoID.iOligoIndex], query.expSpectrum.iPreCharge, oligoEntry.oligoID);
+      auto endTime = std::chrono::high_resolution_clock::now();
+      this->dTimeFragment += std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count() / 1000.0;
 
-      int* theoreticalSpectrum = CalTheoreticalSpectrum(vFragments, query.expSpectrum.iArraySize);
-      int* experimentalSpectrum = CalExperimentalSpectrum(query.expSpectrum);
-      double dXcorr = CalculateUtils::getInstance().FastXcorrCalculate(theoreticalSpectrum, experimentalSpectrum, query.expSpectrum.iArraySize, Param::getInstance().options.iXcorrProcessingOffset);
-      oligoEntry.scores.xCorr = dXcorr;
-      if (oligoEntry.scores.xCorr < CommonValues::dFloatZero)
-         oligoEntry.scores.xCorr = 0;
-      delete[] theoreticalSpectrum;
-      delete[] experimentalSpectrum;
+      startTime = std::chrono::high_resolution_clock::now();
+      oligoEntry.scores.xCorr = XcorrScoring(_tp, query.expSpectrum, vFragments);
+      endTime = std::chrono::high_resolution_clock::now();
+      this->dTimeXcorrCalculate += std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count() / 1000.0;
    }
 
    std::sort(query.vOligoEntries.begin(), query.vOligoEntries.end(), [](const Query::OligoEntry& a, const Query::OligoEntry& b) {
        return a.scores.xCorr > b.scores.xCorr; // Sort in descending order
    });
+
    return true;
 }
 
-// bool SearchUtils::EntryScoring(const ExpSpectrum& expSpectrum, const Oligonucleotide& oligonucleotide, int iWhichVarModCombination, Scores& result)
-// {
-//    bool bSuccessed = true;
-//    if (abs(expSpectrum.iPreCharge) == 0)
-//    {
-//        cout << "Error: in scoring procedure, the spectrum precursor state is 0" << endl;
-//        return false;
-//    }
-//    int iCharge = expSpectrum.iPreCharge;
+double SearchUtils::XcorrScoring(ThreadPool* _tp, const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragments)
+{
+   if (vFragments.size() == 0)
+      return true;
+   
+   double* theoreticalSpectrum = CalTheoreticalSpectrum(vFragments, expSpectrum.iArraySize);
+   double* experimentalSpectrum = CalExperimentalSpectrum(expSpectrum);
+   double dXcorr = CalculateUtils::getInstance().FastXcorrCalculate(theoreticalSpectrum, experimentalSpectrum, expSpectrum.iArraySize, Param::getInstance().options.iXcorrProcessingOffset);
+   if (dXcorr < CommonValues::dFloatZero)
+      dXcorr = 0;
+   delete[] theoreticalSpectrum;
+   delete[] experimentalSpectrum;
+   return dXcorr;
+}
 
-//    //generate fragments
-//    vector<OligonucleotideFragment> vfragmentList;
-//    for (IonSeries::Ions ionType : Param::g_staticParams.ionInformation.vSelectedIonSeries)
-//    {
-//       vector<pair<int, Modification>> varModCombination = Param::g_vVarModification[oligonucleotide.iVarModificationIndex].varModificationList[iWhichVarModCombination];
-//       vector<OligonucleotideFragment> vTmpFragmentList = OligoProcessUtils::GenerateOligonucleotideFragment(oligonucleotide, ionType, iCharge, varModCombination);
-//       vfragmentList.insert(vfragmentList.end(), vTmpFragmentList.begin(), vTmpFragmentList.end());
-//    }
-//    result.totalIons = vfragmentList.size();
+bool SearchUtils::EntropyScoring(ThreadPool* _tp, Query& query)
+{
+   if (query.vOligoEntries.size() == 0)
+      return true;
 
-//    //generate theoretical spectrum and expeimental spectrum
-//    vector<double> theoreticalSpectrum;
-//    vector<double> experimentalSpectrum;
+   // generate theoretical peaks
+   vector<ExpSpectrum::Peak> vTheoreticalPeaks;
+   for (auto& oligoEntry : query.vOligoEntries)
+   {
+      vector<OligoFragment> vFragments = OligoProcessUtils::getInstance().GenerateFragments(Param::getInstance().vOligos[oligoEntry.oligoID.iOligoIndex], query.expSpectrum.iPreCharge, oligoEntry.oligoID);
+      for (const auto& fragment : vFragments)
+      {
+         if (fragment.iCharge != 0)
+         {
+            double dMZ = MassUtils::getInstance().MassToMZ(fragment.dMass, fragment.iCharge, Param::getInstance().options.sAdductIon);
+            vTheoreticalPeaks.push_back(ExpSpectrum::Peak(dMZ, 1.0 / vFragments.size()));
+         }
+         else
+         {
+            int iCharge;
+            if (Param::getInstance().options.bPositiveCharge)
+               iCharge = 1;
+            else
+               iCharge = -1;
+            
+            double dMZ = MassUtils::getInstance().MassToMZ(fragment.dMass, iCharge, Param::getInstance().options.sAdductIon);
+            vTheoreticalPeaks.push_back(ExpSpectrum::Peak(dMZ, 1.0 / vFragments.size()));
+         }
+      }
+      // get experimental peaks
+      vector<ExpSpectrum::Peak> vExperimentalPeaks = query.expSpectrum.spectrum;
+      double dHighestIntensity = vExperimentalPeaks[query.expSpectrum.iHighestIonIndex].dIntensity;
+      for (auto& peak : vExperimentalPeaks)
+         peak.dIntensity /= dHighestIntensity;  
+      
+      // merge peaks
+      vector<ExpSpectrum::Peak> vMergedPeaks;
+      {
+         DoubleRange tolerance = Param::getInstance().options.fragmentTolerance;
+         int iIndex1 = 0;
+         int iIndex2 = 0;
+         while (iIndex1 < vTheoreticalPeaks.size() && iIndex2 < vExperimentalPeaks.size())
+         {
+            if (vMergedPeaks.size() > 0)
+            {
+               double dTheoreticalPPM = (vTheoreticalPeaks[iIndex1].dMZ - vMergedPeaks.back().dMZ) / vMergedPeaks.back().dMZ;
+               double dExperimentalPPM = (vExperimentalPeaks[iIndex2].dMZ - vMergedPeaks.back().dMZ) / vMergedPeaks.back().dMZ;
+               if (tolerance.inRange(dTheoreticalPPM))
+               {
+                  vMergedPeaks.back().dIntensity += vTheoreticalPeaks[iIndex1].dIntensity;
+                  iIndex1++;
+               }
+               else if (tolerance.inRange(dExperimentalPPM))
+               {
+                  vMergedPeaks.back().dIntensity += vExperimentalPeaks[iIndex2].dIntensity;
+                  iIndex2++;
+               }
+               else
+               {
+                  if (vTheoreticalPeaks[iIndex1].dMZ < vExperimentalPeaks[iIndex2].dMZ)
+                     vMergedPeaks.push_back(vTheoreticalPeaks[iIndex1++]);
+                  else
+                     vMergedPeaks.push_back(vExperimentalPeaks[iIndex2++]);
+               }
+            }
+            else
+               if (vTheoreticalPeaks[iIndex1].dMZ < vExperimentalPeaks[iIndex2].dMZ)
+                  vMergedPeaks.push_back(vTheoreticalPeaks[iIndex1++]);
+               else
+                  vMergedPeaks.push_back(vExperimentalPeaks[iIndex2++]);
+         }
+      }
 
-//    bSuccessed = GenerateTheoreticalSpectrum(vfragmentList, expSpectrum.iArraySize, iCharge, theoreticalSpectrum);
-//    if (!bSuccessed)
-//        return false;
-//    bSuccessed = GenerateExperimentalSpectrum(expSpectrum, experimentalSpectrum);
-//    if (!bSuccessed)
-//        return false;
+      // calculate entropy
+      auto calculateEntropy = [](const vector<ExpSpectrum::Peak>& vPeaks)
+      {
+         double dEntropy = 0;
+         for (const auto& peak : vPeaks)
+            dEntropy += -1 * peak.dIntensity * log(peak.dIntensity);
+         return dEntropy;
+      };
+      double dTheoreticalEntropy = calculateEntropy(vTheoreticalPeaks);
+      double dExperimentalEntropy = calculateEntropy(vExperimentalPeaks);
+      double dMergedEntropy = calculateEntropy(vMergedPeaks);
+      oligoEntry.scores.entropy = 1 - (2 * dMergedEntropy - dTheoreticalEntropy - dExperimentalEntropy) / log(4);
+      
+   }
 
-//    // calculate Xcorr
-//    double dXcorr;
-//    bSuccessed = CalculateUtils::FastXcorrCalc(theoreticalSpectrum, experimentalSpectrum, Param::g_staticParams.iXcorrProcessingOffset, dXcorr);
-//    if (!bSuccessed)
-//        return false;
-//    result.xCorr = dXcorr;
-//    if (result.xCorr < CommonValues::dFloatZero)
-//       result.xCorr = 0;
+   std::sort(query.vOligoEntries.begin(), query.vOligoEntries.end(), [](const Query::OligoEntry& a, const Query::OligoEntry& b) {
+       return a.scores.entropy > b.scores.entropy; // Sort in descending order
+   });
 
-//    //cout match fragment
-//    vector<pair<int, int>> vIonSpectrumMatch = SearchUtils::FragmentMatchCount(expSpectrum, vfragmentList); //{peak, fragment}
-//    result.matchedIons = vIonSpectrumMatch.size();
+   return true;
+}
 
-//    //calculate Sp bonus
-//    int iConsec = 0;
-//    for (int i = 0; i < vIonSpectrumMatch.size(); i++)
-//    {
-//       for (int j = i + 1; j < vIonSpectrumMatch.size(); j++)
-//       {
-//          if (vfragmentList[vIonSpectrumMatch[i].second].ionType == vfragmentList[vIonSpectrumMatch[j].second].ionType
-//          && vfragmentList[vIonSpectrumMatch[i].second].sSequence.size() == vfragmentList[vIonSpectrumMatch[j].second].sSequence.size() - 1)
-//             iConsec++;
-//       }
-//    }
+double SearchUtils::EntropyScoring(ThreadPool* _tp, const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragments)
+{
+   return 0;
+}
 
-//    //calculate Sp
-//    double dMatchIntensity = 0.0;
-//    Spectrum spec = Spectrum(expSpectrum.spectrum);
-//    double dHighestIntensity = spec.at(expSpectrum.iHighestIonIndex).intensity;
-//    double dTotalIntensity = 0.0;
-//    for (auto& pair : vIonSpectrumMatch)
-//    {
-//       double dIntensity = spec.at(pair.first).intensity;
-//       dMatchIntensity += dIntensity;
-//    }
+bool SearchUtils::IonMatchScoring(ThreadPool* _tp, Query& query)
+{
+   if (query.vOligoEntries.size() == 0)
+       return true;
 
-//    result.dSp = dMatchIntensity/ expSpectrum.dTotalIntensity * ((double)(1+iConsec)/(double)(result.totalIons));
-//    if (result.dSp < CommonValues::dFloatZero)
-//       result.dSp = 0;
-//    return true;
-// }
+   for (auto& oligoEntry: query.vOligoEntries)
+   {
+      vector<OligoFragment> vFragments = OligoProcessUtils::getInstance().GenerateFragments(Param::getInstance().vOligos[oligoEntry.oligoID.iOligoIndex], query.expSpectrum.iPreCharge, oligoEntry.oligoID);
+      vector<pair<int, int>> vMatchInfo = SearchUtils::getInstance().FragmentMatchCount(query.expSpectrum, vFragments);
+      oligoEntry.scores.iMatchIonCount = vMatchInfo.size();
+      oligoEntry.scores.iTotalIonCount = vFragments.size();
+      oligoEntry.scores.dSp = SearchUtils::getInstance().IonMatchScoring(_tp, query.expSpectrum, vFragments);
+   }
 
-int* SearchUtils::CalTheoreticalSpectrum(const vector<OligoFragment>& vFragments, int iArraySize)
+   std::sort(query.vOligoEntries.begin(), query.vOligoEntries.end(), [](const Query::OligoEntry& a, const Query::OligoEntry& b) {
+       return a.scores.dSp > b.scores.dSp; // Sort in descending order
+   });
+
+   return true;
+}
+
+double SearchUtils::IonMatchScoring(ThreadPool* _tp, const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragments)
+{
+   if (vFragments.size() == 0)
+      return true;
+
+   vector<pair<int, int>> vMatchInfo = SearchUtils::getInstance().FragmentMatchCount(expSpectrum, vFragments);
+
+   // consecutive ion match
+   map<IonSpecies::IonID, vector<int>> mIonSpeciesFragmentIndices;
+   for (const auto& matchInfo : vMatchInfo)
+   {
+      mIonSpeciesFragmentIndices[vFragments[matchInfo.second].ionType.ionType].push_back(matchInfo.second);
+   }
+
+   // calculate Sp
+   double dSp = 0;
+   double dMatchIntensity = 0;
+   int iTotalIons = vFragments.size();
+   int iMatchIons = 0;
+   for (auto& pair : vMatchInfo)
+   {
+      double dIntensity = expSpectrum.spectrum[pair.first].dIntensity;
+      dMatchIntensity += dIntensity;
+      iMatchIons++;
+   }
+   dSp = dMatchIntensity / expSpectrum.dTotalIntensity * ((double)(iMatchIons)/(double)(iTotalIons));
+   return dSp;
+}
+
+double* SearchUtils::CalTheoreticalSpectrum(const vector<OligoFragment>& vFragments, int iArraySize)
 {
    if (iArraySize <= 0)
       return nullptr;
 
-   int* spectrum = new int[iArraySize];
+   double* spectrum = new double[iArraySize];
    for (int i = 0; i < iArraySize; i++)
       spectrum[i] = 0;
 
@@ -190,12 +274,12 @@ int* SearchUtils::CalTheoreticalSpectrum(const vector<OligoFragment>& vFragments
    return spectrum;
 }
 
-int* SearchUtils::CalExperimentalSpectrum(const ExpSpectrum& expSpectrum)
+double* SearchUtils::CalExperimentalSpectrum(const ExpSpectrum& expSpectrum)
 {
    if (expSpectrum.iArraySize <= 0)
       return nullptr;
 
-   int* spectrum = new int[expSpectrum.iArraySize];
+   double* spectrum = new double[expSpectrum.iArraySize];
    for (int i = 0; i < expSpectrum.iArraySize; i++)
       spectrum[i] = 0;
 
@@ -206,97 +290,45 @@ int* SearchUtils::CalExperimentalSpectrum(const ExpSpectrum& expSpectrum)
       double dMZ = peak.dMZ;
       int iBinIndex = MassUtils::getInstance().CalBinIndex(dMZ);
       if (iBinIndex < expSpectrum.iArraySize)
-          spectrum[iBinIndex] += (double)peak.dIntensity / dMaxIntensity;
+          spectrum[iBinIndex] += peak.dIntensity / dMaxIntensity;
    }
    
    return spectrum;
 }
 
-// vector<pair<int, int>> SearchUtils::FragmentMatchCount(const ExpSpectrum& expSpectrum, const vector<OligonucleotideFragment>& vFragmentList)
-// {
-//    int iMatchCount = 0;
-//    vector<pair<int, int>> vMatchIndex;
-//    Spectrum spectrum = Spectrum(expSpectrum.spectrum);
-//    for (int i = 0; i < spectrum.size(); i++)
-//    {
-//       Peak_T peak = spectrum.at(i);
-//       if (peak.intensity < CommonValues::dFloatZero)
-//          continue;
-//       double dExpMZ = peak.mz;
+vector<pair<int, int>> SearchUtils::FragmentMatchCount(const ExpSpectrum& expSpectrum, const vector<OligoFragment>& vFragmentList)
+{
+   vector<pair<int, int>> vMatchInfo;
+   const vector<ExpSpectrum::Peak>& vPeaks = expSpectrum.spectrum;
+   for (size_t iPeakIndex = 0; iPeakIndex < vPeaks.size(); iPeakIndex++)
+   {
+      const ExpSpectrum::Peak& peak = vPeaks[iPeakIndex];
+      if (peak.dIntensity < CommonValues::dFloatZero)
+         continue;
 
-//       for (int ii = 0; ii < vFragmentList.size(); ii++)
-//       {
-//          const OligonucleotideFragment& fragment = vFragmentList[ii];
-//          double dMass = fragment.dMass;
-//          int iCharge = fragment.iCharge;
+      for (size_t iFragmentIndex = 0; iFragmentIndex < vFragmentList.size(); iFragmentIndex++)
+      {
+         const OligoFragment& fragment = vFragmentList[iFragmentIndex];
+         double dMass = fragment.dMass;
+         int iCharge = fragment.iCharge;
+         double dMZ = MassUtils::getInstance().MassToMZ(dMass, iCharge, Param::getInstance().options.sAdductIon);
 
-//          if (Param::g_staticParams.tolerances.iFragmentToleranceUnits == 0) // amu
-//          {
-//             if (Param::g_staticParams.tolerances.iFragmentToleranceType == 1)  // precursor m/z tolerance
-//             {
-//                double dTheMZ = MassUtils::MassToMZ(dMass, iCharge);
-//                if (DoubleRange::inRange(Param::g_staticParams.tolerances.fragmentTolerance, dExpMZ - dTheMZ))
-//                {
-//                   iMatchCount ++;
-//                   vMatchIndex.push_back({i, ii});
-//                   break;
-//                }
-//             }
-//             else
-//             {
-//                double dExpMass = MassUtils::MZToMass(dExpMZ, iCharge);
-//                if (DoubleRange::inRange(Param::g_staticParams.tolerances.fragmentTolerance, dExpMass - dMass))
-//                {
-//                   iMatchCount ++;
-//                   vMatchIndex.push_back({i, ii});
-//                   break;
-//                }
-//             }
-//          }
-//          else if (Param::g_staticParams.tolerances.iFragmentToleranceUnits == 1) // mmu
-//          {
-//             DoubleRange tolerance = Param::g_staticParams.tolerances.fragmentTolerance;
-//             tolerance *= 0.001;
-//             if (Param::g_staticParams.tolerances.iFragmentToleranceType == 1)  // precursor m/z tolerance
-//             {
-//                double dTheMZ = MassUtils::MassToMZ(dMass, iCharge);
-//                if (DoubleRange::inRange(tolerance, dExpMZ - dTheMZ))
-//                {
-//                   iMatchCount ++;
-//                   vMatchIndex.push_back({i, ii});
-//                   break;
-//                }
-//             }
-//             else
-//             {
-//                double dExpMass = MassUtils::MZToMass(dExpMZ, iCharge);
-//                if (DoubleRange::inRange(tolerance, dExpMass - dMass))
-//                {
-//                   iMatchCount ++;
-//                   vMatchIndex.push_back({i, ii});
-//                   break;
-//                }
-//             }
-//          }
-//          else // ppm
-//          {
-//             double dTheMZ = MassUtils::MassToMZ(dMass, iCharge);
+         DoubleRange tolerance = Param::getInstance().options.fragmentTolerance;
+         tolerance *= ((double)dMZ / (double)1e6);
+         if (tolerance.inRange(peak.dMZ - dMZ))
+         {
+            vMatchInfo.push_back({iPeakIndex, iFragmentIndex});
+            break;   
+         }
+         
+      }
+   }
+   return vMatchInfo;
+}
 
-//             DoubleRange tolerance = Param::g_staticParams.tolerances.fragmentTolerance;
-//             tolerance *= ((double)dTheMZ / (double)1e6);
-//             if (DoubleRange::inRange(tolerance, dExpMZ - dTheMZ))
-//             {
-//                iMatchCount ++;
-//                vMatchIndex.push_back({i, ii});
-//                break;
-//             }
-//          }
-//       }
-//    }
-//    return vMatchIndex;
-// }
-
+// ==============================
 // PrecursorMassIndexUtils
+// ==============================
 
 PrecursorMassIndexUtils::PrecursorMassIndexUtils()
 {
@@ -355,7 +387,10 @@ vector<vector<PrecursorMassIndexUtils::PrecursorMassIndex>> PrecursorMassIndexUt
    return vvResult;
 }
 
+// ==============================
 // FragmentMZIndexUtils
+// ==============================
+
 FragmentMZIndexUtils::FragmentMZIndexUtils()
 {
    int iBinNumber = int(Param::getInstance().options.fragmentMassRange.dEnd) + 1;

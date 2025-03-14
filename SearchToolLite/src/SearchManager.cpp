@@ -162,8 +162,10 @@ bool SearchManager::DoSearch()
           ExpSpectrum& expspectrum = vSpectrums[iSpecIndex];
           Query query(expspectrum);
 
-          bSucceeded = SearchUtils::getInstance().PrecursorFilter(tp, query, Param::getInstance().vOligos);
-          bSucceeded = SearchUtils::getInstance().RoughScoring(tp, query);
+         bSucceeded = SearchUtils::getInstance().PrecursorFilter(tp, query, Param::getInstance().vOligos);
+         bSucceeded = SearchUtils::getInstance().XcorrScoring(tp, query);
+         //bSucceeded = SearchUtils::getInstance().EntropyScoring(tp, query);
+         // bSucceeded = SearchUtils::getInstance().IonMatchScoring(tp, query);
 
           if (!bSucceeded)
           {
@@ -187,7 +189,19 @@ bool SearchManager::DoSearch()
       WriteOutUtils::getInstance().QueriesCSVOutput("D:/code/VSC++/Nebulion/resource/result.csv", vQueries);
 
       cout << " - done." << endl << endl;
-      
+      cout << "Fragment Time: " << SearchUtils::getInstance().dTimeFragment << " ms" << endl;
+      cout << "Xcorr Time: " << SearchUtils::getInstance().dTimeXcorrCalculate << " ms" << endl;
+
+      int iTmpCount = 0;
+      for (size_t iQueryIndex = 0; iQueryIndex < vQueries.size(); iQueryIndex++)
+      {
+        if (vQueries[iQueryIndex].vOligoEntries.size() > 0)
+        {
+          iTmpCount += vQueries[iQueryIndex].vOligoEntries.size();
+        }
+      }
+
+      cout << "Total query number: " << iTmpCount << endl;
    }
 
    return true;

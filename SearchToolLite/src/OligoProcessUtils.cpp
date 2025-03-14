@@ -234,6 +234,7 @@ vector<OligoFragment> OligoProcessUtils::GenerateNLFragments(const Oligonucleoti
    lossHPO3Fragment.vMods = oligo.vMods;
    lossHPO3Fragment.sSequence = oligo.sSequence;
    lossHPO3Fragment.dMass = dOligoMass - (H + P + 3 * O);
+   lossHPO3Fragment.iCharge = iCharge;
    vFragmentResults.push_back(lossHPO3Fragment);
 
    OligoFragment lossH3PO4Fragment;
@@ -243,6 +244,7 @@ vector<OligoFragment> OligoProcessUtils::GenerateNLFragments(const Oligonucleoti
    lossH3PO4Fragment.vMods = oligo.vMods;
    lossH3PO4Fragment.sSequence = oligo.sSequence;
    lossH3PO4Fragment.dMass = dOligoMass - (2 * H + O);
+   lossH3PO4Fragment.iCharge = iCharge;
    vFragmentResults.push_back(lossH3PO4Fragment);
 
    OligoFragment lossH2OFragment;
@@ -252,6 +254,7 @@ vector<OligoFragment> OligoProcessUtils::GenerateNLFragments(const Oligonucleoti
    lossH2OFragment.vMods = oligo.vMods;
    lossH2OFragment.sSequence = oligo.sSequence;
    lossH2OFragment.dMass = dOligoMass - (3 * H + P + 4 * O);
+   lossH2OFragment.iCharge = iCharge;
    vFragmentResults.push_back(lossH2OFragment);
 
     // base fragment and M-Base fragment
